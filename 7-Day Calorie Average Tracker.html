@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>7-Day Calorie Average Tracker</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--mute:#6b7685;--line:#dde2e8;--acc:#1f4e78;--accink:#fff;--good:#d7f0de;--goodink:#14532d;--bad:#fbdcd0;--badink:#7c2d12;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181e;--card:#1d232c;--ink:#e8ecf1;--mute:#98a3b2;--line:#323b47;--acc:#6aa7dc;--accink:#0b1520;--good:#1d3a2a;--goodink:#a7e3bd;--bad:#4a2a1d;--badink:#f4b99d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14181e;--card:#1d232c;--ink:#e8ecf1;--mute:#98a3b2;--line:#323b47;--acc:#6aa7dc;--accink:#0b1520;--good:#1d3a2a;--goodink:#a7e3bd;--bad:#4a2a1d;--badink:#f4b99d;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Arial,Helvetica,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:inherit;font-weight:bold;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.q{margin-bottom:16px}
+.q label{display:block;font-weight:bold;margin-bottom:2px}
+.q small{display:block;color:var(--mute);margin-bottom:6px}
+input{width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+button.go{width:100%;padding:12px;border:0;border-radius:10px;background:var(--acc);color:var(--accink);font:inherit;font-weight:bold;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px}.stat span{color:var(--mute);font-size:12px}
+.msg{padding:10px 12px;border-radius:8px;margin-top:12px;display:none}
+.msg.show{display:block}.msg.ok{background:var(--good);color:var(--goodink)}.msg.err{background:var(--bad);color:var(--badink)}
+.scroll{overflow-x:auto;max-height:65vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
+th,td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--acc);color:var(--accink)}
+td.good{background:var(--good);color:var(--goodink)}td.bad{background:var(--bad);color:var(--badink)}
+.note{color:var(--mute);font-size:12px;margin:8px 2px}
+.link{background:none;border:0;color:var(--mute);text-decoration:underline;font:inherit;font-size:12px;cursor:pointer;padding:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>7-Day Calorie Average Tracker</h1>
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" id="t-log" aria-selected="true">Log your day</button>
+  <button class="tab" role="tab" id="t-sheet" aria-selected="false">Sheet</button>
+</div>
+
+<section id="p-log">
+  <div class="card">
+    <div class="q"><label for="target">1. What’s your target 7-day average?</label>
+      <small>Calories per day, averaged over any 7 days in a row.</small>
+      <input id="target" type="number" inputmode="numeric" min="0" step="10" placeholder="e.g. 1800"></div>
+    <div class="q"><label for="date">2. Which day are you logging?</label>
+      <small>Pick any date, including past days you haven’t entered yet.</small>
+      <input id="date" type="date"></div>
+    <div class="q"><label for="kcal">3. How many calories did you eat that day?</label>
+      <small>Saving a date that’s already logged replaces the old number.</small>
+      <input id="kcal" type="number" inputmode="numeric" min="0" step="1" placeholder="e.g. 1850"></div>
+    <button class="go" id="save">Save to sheet</button>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="s-avg">–</b><span>Latest 7-day avg</span></div>
+    <div class="stat"><b id="s-diff">–</b><span>vs target</span></div>
+    <div class="stat"><b id="s-room">–</b><span>Room for next day</span></div>
+  </div>
+  <p class="note">“Room for next day” is the calories you can eat on the next day and still land exactly on your target average. Data stays in this browser on this device.</p>
+</section>
+
+<section id="p-sheet" hidden>
+  <p class="note">🔒 Locked view. It fills in from the “Log your day” tab.</p>
+  <div class="scroll" id="scroll"><table>
+    <thead><tr><th>Day</th><th>Date</th><th>Calories eaten</th><th>7-day moving avg</th><th>Target avg</th><th>Avg vs target</th><th>Room for next day</th></tr></thead>
+    <tbody id="rows"></tbody></table></div>
+  <p class="note" id="empty">No entries yet. Add your first day on the other tab.</p>
+  <button class="link" id="reset">Clear all data</button>
+</section>
+</div>
+
+<script>
+var KEY="calorieTracker.v1", D={target:null,entries:{}};
+function load(){try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o&&o.entries)D=o;}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}}
+function $(i){return document.getElementById(i)}
+function pd(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2],12)}
+function fd(d){var m=d.getMonth()+1,x=d.getDate();return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(x<10?"0":"")+x}
+function add(s,n){var d=pd(s);d.setDate(d.getDate()+n);return fd(d)}
+function nice(s){return pd(s).toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"})}
+function n0(x){return Math.round(x).toLocaleString("en-US")}
+
+function compute(){
+  var ks=Object.keys(D.entries).sort(); if(!ks.length||!D.target)return [];
+  var start=ks[0],end=ks[ks.length-1],rows=[],i=0,d=start;
+  while(d<=end){rows.push({day:i+1,date:d,cal:D.entries[d]});i++;d=add(d,1);}
+  rows.forEach(function(r,i){
+    var w6=rows.slice(Math.max(0,i-5),i+1), w7=rows.slice(Math.max(0,i-6),i+1);
+    var ok6=i>=5&&w6.every(function(x){return x.cal!=null}), ok7=i>=6&&w7.every(function(x){return x.cal!=null});
+    if(ok7)r.avg=w7.reduce(function(a,x){return a+x.cal},0)/7;
+    if(ok6)r.room=D.target*7-w6.reduce(function(a,x){return a+x.cal},0);
+  });
+  return rows;
+}
+
+function render(){
+  var rows=compute(), tb=$("rows"); tb.innerHTML="";
+  rows.forEach(function(r){
+    var tr=document.createElement("tr"), diff=r.avg!=null?r.avg-D.target:null;
+    var cells=[r.day,nice(r.date),r.cal!=null?n0(r.cal):"",r.avg!=null?n0(r.avg):"",n0(D.target),diff!=null?(diff>0?"+":"")+n0(diff):"",r.room!=null?n0(r.room):""];
+    cells.forEach(function(v,j){var td=document.createElement("td");td.textContent=v;if(j==5&&diff!=null)td.className=diff>0?"bad":"good";tr.appendChild(td)});
+    tb.appendChild(tr);
+  });
+  $("empty").hidden=rows.length>0;
+  var last=null,lastRoom=null;
+  rows.forEach(function(r){if(r.avg!=null)last=r;if(r.room!=null)lastRoom=r});
+  $("s-avg").textContent=last?n0(last.avg):"–";
+  $("s-diff").textContent=last?((last.avg-D.target>0?"+":"")+n0(last.avg-D.target)):"–";
+  $("s-room").textContent=lastRoom?n0(lastRoom.room):"–";
+}
+
+function show(which){
+  var log=which=="log";
+  $("p-log").hidden=!log;$("p-sheet").hidden=log;
+  $("t-log").setAttribute("aria-selected",log);$("t-sheet").setAttribute("aria-selected",!log);
+  if(!log){render();var s=$("scroll");s.scrollTop=s.scrollHeight;}
+}
+function msg(t,ok){var m=$("msg");m.textContent=t;m.className="msg show "+(ok?"ok":"err")}
+
+function nextDate(){
+  var ks=Object.keys(D.entries).sort();
+  return ks.length?add(ks[ks.length-1],1):fd(new Date());
+}
+
+$("t-log").onclick=function(){show("log")};
+$("t-sheet").onclick=function(){show("sheet")};
+$("save").onclick=function(){
+  var t=parseFloat($("target").value),d=$("date").value,k=parseFloat($("kcal").value);
+  if(!(t>0))return msg("Please enter your target average first.",false);
+  if(!d)return msg("Please pick a date.",false);
+  if(!(k>=0)||$("kcal").value==="")return msg("Please enter the calories for that day.",false);
+  D.target=t;D.entries[d]=k;save();render();
+  var rows=compute(),r=rows.filter(function(x){return x.date==d})[0],text="Saved "+nice(d)+": "+n0(k)+" kcal.";
+  if(r&&r.avg!=null)text+=" Your 7-day average ending that day is "+n0(r.avg)+" ("+(r.avg-t>0?"+":"")+n0(r.avg-t)+" vs target).";
+  else text+=" The 7-day average shows once you have 7 days in a row logged.";
+  if(r&&r.room!=null)text+=" Room for the next day: "+n0(r.room)+" kcal.";
+  msg(text,true);
+  $("date").value=nextDate();$("kcal").value="";
+};
+var armed=false;
+$("reset").onclick=function(){
+  if(!armed){armed=true;$("reset").textContent="Tap again to permanently clear everything";return;}
+  D={target:null,entries:{}};save();armed=false;$("reset").textContent="Clear all data";
+  $("target").value="";$("date").value=fd(new Date());render();
+};
+load();
+$("target").value=D.target||"";
+$("date").value=nextDate();
+render();
+</script>
+</body>
+</html>
